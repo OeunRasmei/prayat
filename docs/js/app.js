@@ -1,6 +1,6 @@
 import { classify, highlightRanges, loadDetector } from "./detector.js";
 import { EXAMPLES, STRINGS } from "./i18n.js";
-import { cleanOcrText, enhanceForOcr } from "./ocrprep.js";
+import { cleanOcrText, enhanceForOcr, ocrScale } from "./ocrprep.js";
 import { detectLanguage, fixKhmer } from "./textprep.js";
 
 const TESSERACT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
@@ -132,6 +132,11 @@ function renderResult(r, fresh = false) {
   $("empty").hidden = true;
   $("filled").hidden = false;
   $("result").dataset.tone = tone;
+  $("filled").classList.remove("fresh");
+  if (fresh) {
+    void $("filled").offsetWidth; // restart the scan-and-stamp sequence
+    $("filled").classList.add("fresh");
+  }
 
   // verdict header
   $("verdict-icon").innerHTML = icon(verdict);
@@ -180,7 +185,7 @@ function renderResult(r, fresh = false) {
     b.addEventListener("pointerleave", () => hot(false));
     b.addEventListener("focus", () => hot(true));
     b.addEventListener("blur", () => hot(false));
-    return el("li", {}, b);
+    return el("li", { style: `--i:${i}` }, b);
   }));
 
   // scores
@@ -226,6 +231,30 @@ function renderAccuracy() {
     ...["en", "km", "zh"].map((l) => card(t("lang_names")[l], det.per_language[l], det.per_language[l].n)),
     card(t("all_langs"), det.metrics, det.n_test, true),
   );
+  countUpOnce();
+}
+
+// The accuracy figures count up the first time they scroll into view. They are rendered
+// with their final values, so the page reads correctly without this.
+let countedUp = false;
+function countUpOnce() {
+  if (countedUp || !("IntersectionObserver" in window) || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const io = new IntersectionObserver((entries) => {
+    if (!entries.some((e) => e.isIntersecting)) return;
+    io.disconnect();
+    countedUp = true;
+    const nodes = [...document.querySelectorAll("#acc-cards .big")];
+    const targets = nodes.map((n) => parseFloat(n.textContent));
+    const t0 = performance.now();
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / 900);
+      const ease = 1 - (1 - k) ** 3;
+      nodes.forEach((n, i) => { n.textContent = `${(targets[i] * ease).toFixed(1)}%`; });
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, { threshold: 0.4 });
+  io.observe($("acc-cards"));
 }
 
 // ---------- screenshots (OCR, in the browser) ----------
@@ -244,6 +273,7 @@ function loadScript(src) {
 function ocrStatus(text, progress = null) {
   $("ocr-status").textContent = text;
   $("progress").hidden = progress === null;
+  $("attachment").classList.toggle("reading", progress !== null);
   if (progress !== null) $("progress").firstElementChild.style.width = `${Math.round(progress * 100)}%`;
 }
 
@@ -269,10 +299,23 @@ async function getWorker(langs) {
   return state.worker;
 }
 
-// Upscale small screenshots: Tesseract reads text best at roughly 30 px per line.
+// Read the screenshot as one block of text (page-segmentation mode 6): chat messages are a
+// single column, and the automatic layout mode often split or dropped Khmer lines. If that
+// finds almost nothing, fall back to the automatic mode (3).
+async function recognize(worker, image) {
+  await worker.setParameters({ tessedit_pageseg_mode: "6" });
+  let text = cleanOcrText((await worker.recognize(image)).data.text || "");
+  if ((text.match(/[\p{L}]/gu) || []).length < 4) {
+    await worker.setParameters({ tessedit_pageseg_mode: "3" });
+    text = cleanOcrText((await worker.recognize(image)).data.text || "") || text;
+  }
+  return text;
+}
+
+// Enlarge the screenshot (see ocrScale) and clean up the picture for OCR.
 async function prepareImage(file) {
   const bitmap = await createImageBitmap(file);
-  const scale = bitmap.width < 1100 ? Math.min(2.5, 2200 / bitmap.width) : 1;
+  const scale = ocrScale(bitmap.width, bitmap.height);
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);
@@ -298,15 +341,13 @@ async function readScreenshot(file) {
   try {
     const langs = $("ocr-lang").value;
     let [worker, image] = await Promise.all([getWorker(langs), prepareImage(file)]);
-    let { data } = await worker.recognize(image);
-    let text = cleanOcrText(data.text || "");
+    let text = await recognize(worker, image);
     // In automatic mode, read again with the detected script as the main language:
     // Tesseract reads mixed screenshots much better when the main language is right.
     const better = langs.includes("+") && text ? SECOND_PASS[detectLanguage(text)] : null;
     if (better) {
       worker = await getWorker(better);
-      ({ data } = await worker.recognize(image));
-      text = cleanOcrText(data.text || "") || text;
+      text = (await recognize(worker, image)) || text;
     }
     if (!text) {
       ocrStatus(t("ocr_none"));
