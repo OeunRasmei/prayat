@@ -1,5 +1,5 @@
 // Helpers for reading screenshots: clean up the picture before OCR, and the text after it.
-// Pure functions (no DOM), so tests/check_ocr.mjs can run them in Node.
+// Pure functions (no DOM), so they can also be tested in Node.
 
 import { fixKhmer } from "./textprep.js";
 
