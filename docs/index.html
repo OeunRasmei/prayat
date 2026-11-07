@@ -18,6 +18,11 @@
       <span class="brand-km" lang="km">ប្រយ័ត្ន</span>
       <span class="brand-en">Prayat</span>
     </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#how" data-i18n="nav_how"></a>
+      <a href="#accuracy" data-i18n="nav_acc"></a>
+      <a href="https://github.com/OeunRasmei/prayat" data-i18n="nav_code"></a>
+    </nav>
     <div class="ui-lang" role="group" aria-label="Interface language">
       <button type="button" data-ui="en" lang="en">English</button>
       <button type="button" data-ui="km" lang="km">ខ្មែរ</button>
@@ -29,78 +34,88 @@
     <section class="hero">
       <h1 data-i18n="tagline"></h1>
       <p data-i18n="intro"></p>
+      <ul class="trust" id="trust"></ul>
     </section>
 
     <section class="checker">
-      <div class="panel input-panel">
-        <div class="tabs" role="tablist">
-          <button type="button" role="tab" id="tab-text" aria-controls="pane-text" aria-selected="true" data-i18n="tab_text"></button>
-          <button type="button" role="tab" id="tab-image" aria-controls="pane-image" aria-selected="false" tabindex="-1" data-i18n="tab_image"></button>
+      <div class="panel composer-panel">
+        <label for="message" class="panel-title" data-i18n="composer_label"></label>
+        <div class="composer" id="composer">
+          <div class="attachment" id="attachment" hidden>
+            <img id="thumb" alt="">
+            <div class="att-body">
+              <p id="ocr-status" role="status"></p>
+              <div class="progress" id="progress" hidden><span></span></div>
+            </div>
+            <button type="button" class="icon-btn" id="remove-image" data-i18n-aria="remove_image">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+          <textarea id="message" rows="7" data-i18n-placeholder="placeholder" spellcheck="false"></textarea>
+          <div class="toolbar">
+            <label class="tool-btn">
+              <input type="file" id="file" accept="image/*">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>
+              <span data-i18n="add_image"></span>
+            </label>
+            <span class="drop-hint" data-i18n="drop_hint"></span>
+          </div>
+          <div class="drop-overlay" id="drop-overlay" hidden><p data-i18n="dropping"></p></div>
         </div>
-
-        <div id="pane-text" role="tabpanel" aria-labelledby="tab-text">
-          <textarea id="message" rows="7" data-i18n-aria="placeholder" data-i18n-placeholder="placeholder" spellcheck="false"></textarea>
-          <div class="examples">
-            <span data-i18n="try"></span>
-            <button type="button" class="chip" data-example="en" lang="en">English</button>
-            <button type="button" class="chip" data-example="km" lang="km">ខ្មែរ</button>
-            <button type="button" class="chip" data-example="zh" lang="zh">中文</button>
-          </div>
-          <div class="actions">
-            <button type="button" id="check" class="btn primary" data-i18n="check"></button>
-            <button type="button" id="clear" class="btn ghost" data-i18n="clear"></button>
-          </div>
-          <p id="hint" class="hint" role="status"></p>
+        <div class="actions">
+          <button type="button" id="check" class="btn primary"><span data-i18n="check"></span><kbd class="kbd">Ctrl&#8239;+&#8239;Enter</kbd></button>
+          <button type="button" id="clear" class="btn ghost" data-i18n="clear"></button>
         </div>
-
-        <div id="pane-image" role="tabpanel" aria-labelledby="tab-image" hidden>
-          <div id="drop" class="drop">
-            <img id="thumb" alt="" hidden>
-            <p class="drop-title" data-i18n="drop_title"></p>
-            <p class="drop-sub">
-              <span data-i18n="drop_sub"></span>
-              <label class="btn secondary file-btn"><input type="file" id="file" accept="image/*"><span data-i18n="choose"></span></label>
-            </p>
-          </div>
-          <div class="ocr-row">
-            <label for="ocr-lang" data-i18n="ocr_lang"></label>
-            <select id="ocr-lang">
-              <option value="eng+khm+chi_sim" data-i18n="auto"></option>
-              <option value="eng" lang="en">English</option>
-              <option value="khm" lang="km">ខ្មែរ</option>
-              <option value="chi_sim" lang="zh">中文</option>
-            </select>
-          </div>
-          <div class="progress" id="progress" hidden><span></span></div>
-          <p id="ocr-status" class="hint" role="status"></p>
-          <p class="note" data-i18n="ocr_note"></p>
+        <p id="hint" class="hint" role="status"></p>
+        <div class="examples">
+          <p class="examples-title" data-i18n="try"></p>
+          <div class="example-list" id="examples"></div>
         </div>
+        <div class="ocr-row">
+          <label for="ocr-lang" data-i18n="ocr_lang"></label>
+          <select id="ocr-lang">
+            <option value="eng+khm+chi_sim" data-i18n="auto"></option>
+            <option value="eng" lang="en">English</option>
+            <option value="khm" lang="km">ខ្មែរ</option>
+            <option value="chi_sim" lang="zh">中文</option>
+          </select>
+        </div>
+        <p class="note" data-i18n="ocr_note"></p>
       </div>
 
       <div class="panel result-panel" id="result">
         <div class="empty" id="empty">
           <h2 data-i18n="empty_title"></h2>
-          <ul id="tips"></ul>
+          <ol class="signs" id="signs"></ol>
         </div>
         <div class="filled" id="filled" hidden>
+          <div class="verdict-row">
+            <span class="verdict-icon" id="verdict-icon" aria-hidden="true"></span>
+            <div>
+              <h2 class="verdict" id="verdict" tabindex="-1"></h2>
+              <p class="sub" id="verdict-sub"></p>
+            </div>
+          </div>
           <div class="bubble-wrap">
             <p class="bubble" id="bubble"></p>
             <p class="stamp" id="stamp" aria-hidden="true"></p>
           </div>
-          <h2 class="verdict" id="verdict" tabindex="-1"></h2>
-          <p class="sub" id="verdict-sub"></p>
-
-          <h3 data-i18n="probs_title"></h3>
-          <div class="bar" id="bar" aria-hidden="true"><span class="seg normal"></span><span class="seg spam"></span><span class="seg scam"></span></div>
-          <ul class="legend" id="legend"></ul>
-
-          <div id="why">
+          <div class="block" id="why">
             <h3 data-i18n="why_title"></h3>
             <ul class="flags" id="flags"></ul>
+            <p class="why-hint" data-i18n="why_hint"></p>
           </div>
-
-          <h3 data-i18n="todo_title"></h3>
-          <ul class="todo" id="todo"></ul>
+          <div class="block">
+            <h3 data-i18n="probs_title"></h3>
+            <ul class="scores" id="scores"></ul>
+          </div>
+          <div class="block">
+            <h3 data-i18n="todo_title"></h3>
+            <ul class="todo" id="todo"></ul>
+          </div>
+          <div class="result-actions">
+            <button type="button" class="btn secondary" id="another" data-i18n="check_another"></button>
+          </div>
           <p class="disclaimer" data-i18n="disclaimer"></p>
         </div>
       </div>
@@ -116,12 +131,7 @@
     <section class="accuracy" id="accuracy">
       <h2 data-i18n="model_title"></h2>
       <p class="lede" id="model-lede"></p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th scope="col" data-i18n="th_lang"></th><th scope="col" class="num" data-i18n="th_n"></th><th scope="col" class="num" data-i18n="th_f1"></th><th scope="col" class="num" data-i18n="th_caught"></th><th scope="col" class="num" data-i18n="th_false"></th></tr></thead>
-          <tbody id="acc-body"></tbody>
-        </table>
-      </div>
+      <div class="acc-cards" id="acc-cards"></div>
       <p class="small" data-i18n="data_note"></p>
       <p class="small" data-i18n="limits"></p>
     </section>

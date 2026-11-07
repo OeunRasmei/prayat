@@ -5,20 +5,52 @@ import { detectLanguage } from "./textprep.js";
 const TESSERACT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
 const UNSURE_BELOW = 0.6;
 const SECOND_PASS = { zh: "chi_sim+eng", km: "khm+eng" };
+const LANG_SELF_NAME = { en: "English", km: "ខ្មែរ", zh: "中文" };
+
+const ICONS = {
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+  free: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/>',
+  phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+  email: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  scam: '<path d="M12 3.5l9 16H3z"/><path d="M12 10v4M12 17v.01"/>',
+  spam: '<path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/>',
+  normal: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  unsure: '<path d="M9 9a3 3 0 1 1 4.5 2.6c-.9.5-1.5 1.2-1.5 2.4"/><path d="M12 18v.01"/>',
+  tick: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/>',
+};
+const icon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
 
 const $ = (id) => document.getElementById(id);
 const state = {
   ui: "en",
   det: null,
   result: null,
-  exampleIndex: { en: 0, km: 0, zh: 0 },
+  example: null,
   worker: null,
   workerLangs: null,
+  thumbUrl: null,
 };
 
 const t = (key) => STRINGS[state.ui][key];
 const fill = (text, vars) => text.replace(/\{(\w+)\}/g, (_, k) => vars[k]);
 const pct = (p) => (p >= 0.995 ? ">99" : p < 0.005 ? "<1" : String(Math.round(p * 100)));
+
+function el(tag, props = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "html") node.innerHTML = v;
+    else if (k === "dataset") Object.assign(node.dataset, v);
+    else if (k in node && typeof v !== "string") node[k] = v;
+    else node.setAttribute(k, v);
+  }
+  node.append(...children);
+  return node;
+}
 
 // ---------- interface language ----------
 
@@ -38,39 +70,27 @@ function setLanguage(lang) {
   document.documentElement.lang = lang;
   try { localStorage.setItem("prayat-ui", lang); } catch { /* storage unavailable */ }
   document.querySelectorAll("[data-ui]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.ui === lang)));
-  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
-  document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
-  document.querySelectorAll("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
-  $("tips").replaceChildren(...t("tips").map((s) => li(s)));
-  $("steps").replaceChildren(...t("steps").map(([title, body]) => {
-    const item = document.createElement("li");
-    const h = document.createElement("h3");
-    h.textContent = title;
-    const p = document.createElement("p");
-    p.textContent = body;
-    item.append(h, p);
-    return item;
+  document.querySelectorAll("[data-i18n]").forEach((node) => { node.textContent = t(node.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => { node.placeholder = t(node.dataset.i18nPlaceholder); });
+  document.querySelectorAll("[data-i18n-aria]").forEach((node) => node.setAttribute("aria-label", t(node.dataset.i18nAria)));
+
+  const trustIcons = ["lock", "globe", "image", "free"];
+  $("trust").replaceChildren(...t("trust").map((s, i) => el("li", { html: icon(trustIcons[i]) }, s)));
+
+  const signIcons = ["clock", "key", "link"];
+  $("signs").replaceChildren(...t("signs").map(([title, body], i) =>
+    el("li", {}, el("span", { class: "ico", html: icon(signIcons[i]) }), el("div", {}, el("h3", {}, title), el("p", {}, body)))));
+
+  $("examples").replaceChildren(...EXAMPLES.map((ex, i) => {
+    const b = el("button", { type: "button", class: "example", "aria-pressed": String(state.example === i) },
+      ex.label[lang], el("small", { lang: ex.lang }, LANG_SELF_NAME[ex.lang]));
+    b.addEventListener("click", () => useExample(i));
+    return b;
   }));
+
+  $("steps").replaceChildren(...t("steps").map(([title, body]) => el("li", {}, el("h3", {}, title), el("p", {}, body))));
   if (state.det) renderAccuracy();
   if (state.result) renderResult(state.result);
-}
-
-function li(text) {
-  const el = document.createElement("li");
-  el.textContent = text;
-  return el;
-}
-
-// ---------- tabs ----------
-
-function selectTab(which) {
-  const isText = which === "text";
-  $("tab-text").setAttribute("aria-selected", String(isText));
-  $("tab-image").setAttribute("aria-selected", String(!isText));
-  $("tab-text").tabIndex = isText ? 0 : -1;
-  $("tab-image").tabIndex = isText ? -1 : 0;
-  $("pane-text").hidden = !isText;
-  $("pane-image").hidden = isText;
 }
 
 // ---------- checking ----------
@@ -86,9 +106,18 @@ function check() {
     $("hint").textContent = t("loading_model");
     return;
   }
-  $("hint").textContent = "";
+  if ($("hint").textContent === t("need_text")) $("hint").textContent = "";
   state.result = classify(state.det, text);
   renderResult(state.result, true);
+}
+
+function useExample(i) {
+  state.example = i;
+  $("message").value = EXAMPLES[i].text;
+  clearAttachment();
+  $("hint").textContent = "";
+  document.querySelectorAll(".example").forEach((b, k) => b.setAttribute("aria-pressed", String(k === i)));
+  check();
 }
 
 function verdictOf(r) {
@@ -103,22 +132,30 @@ function renderResult(r, fresh = false) {
   $("filled").hidden = false;
   $("result").dataset.tone = tone;
 
-  // message bubble with suspicious parts underlined
-  const bubble = $("bubble");
-  const showFlags = verdict !== "normal";
-  const ranges = showFlags ? highlightRanges(r.text, r.flags) : [];
-  const nodes = [];
+  // verdict header
+  $("verdict-icon").innerHTML = icon(verdict);
+  $("verdict").textContent = t("verdict")[verdict];
+  const top = verdict === "unsure" ? Math.max(r.probs.spam, r.probs.scam) : r.probs[verdict];
+  $("verdict-sub").replaceChildren(...[
+    verdict === "unsure" ? null : fill(t("sure"), { pct: pct(top) }),
+    fill(t("lang_detected"), { lang: t("lang_names")[detectLanguage(r.text)] }),
+  ].filter(Boolean).map((s) => el("span", {}, s)));
+
+  // message bubble: suspicious phrases underlined, each linked to its reason
+  const flags = verdict === "normal" ? [] : r.flags;
+  const perFlag = flags.map((f) => highlightRanges(r.text, [f]));
+  const merged = highlightRanges(r.text, flags);
+  const nodes = [el("span", { class: "stamp-space", "aria-hidden": "true" })];
   let pos = 0;
-  for (const { start, end } of ranges) {
+  for (const { start, end } of merged) {
     if (start > pos) nodes.push(document.createTextNode(r.text.slice(pos, start)));
-    const mark = document.createElement("mark");
-    mark.textContent = r.text.slice(start, end);
-    nodes.push(mark);
+    const owners = perFlag.flatMap((ranges, i) => (ranges.some((q) => q.start < end && q.end > start) ? [i] : []));
+    nodes.push(el("mark", { dataset: { flags: owners.join(" ") } }, r.text.slice(start, end)));
     pos = end;
   }
   nodes.push(document.createTextNode(r.text.slice(pos)));
-  bubble.replaceChildren(...nodes);
-  bubble.lang = detectLanguage(r.text);
+  $("bubble").replaceChildren(...nodes);
+  $("bubble").lang = detectLanguage(r.text);
 
   const stamp = $("stamp");
   stamp.textContent = t("stamp")[verdict];
@@ -128,67 +165,65 @@ function renderResult(r, fresh = false) {
     stamp.classList.add("thud");
   }
 
-  const top = verdict === "unsure" ? Math.max(r.probs.spam, r.probs.scam) : r.probs[verdict];
-  $("verdict").textContent = t("verdict")[verdict];
-  $("verdict-sub").replaceChildren(...[
-    verdict === "unsure" ? null : fill(t("sure"), { pct: pct(top) }),
-    fill(t("lang_detected"), { lang: t("lang_names")[detectLanguage(r.text)] }),
-  ].filter(Boolean).map((s) => {
-    const span = document.createElement("span");
-    span.textContent = s;
-    return span;
-  }));
-
-  const segs = $("bar").children;
-  ["normal", "spam", "scam"].forEach((c, k) => { segs[k].style.width = `${(r.probs[c] * 100).toFixed(2)}%`; });
-  $("legend").replaceChildren(...["scam", "spam", "normal"].map((c) => {
-    const item = document.createElement("li");
-    item.dataset.c = c;
-    item.textContent = `${t("labels")[c]} ${pct(r.probs[c])}%`;
-    return item;
-  }));
-
-  const flags = showFlags ? r.flags : [];
+  // reasons
   $("why").hidden = flags.length === 0;
-  $("flags").replaceChildren(...flags.map((f) => {
-    const item = document.createElement("li");
-    item.dataset.kind = f.kind;
-    if (f.kind === "text") {
-      item.textContent = `“${f.text}”`;
-      item.lang = detectLanguage(f.text);
-    } else {
-      item.textContent = t(`flag_${f.kind}`);
-    }
-    return item;
+  $("flags").replaceChildren(...flags.map((f, i) => {
+    const isText = f.kind === "text";
+    const b = el("button", { type: "button", dataset: { kind: f.kind, flag: String(i) }, html: isText ? "" : icon(f.kind) },
+      isText ? `“${f.text}”` : t(`flag_${f.kind}`));
+    if (isText) b.lang = detectLanguage(f.text);
+    const hot = (on) => document.querySelectorAll("#bubble mark").forEach((m) => {
+      if (m.dataset.flags.split(" ").includes(String(i))) m.classList.toggle("hot", on);
+    });
+    b.addEventListener("pointerenter", () => hot(true));
+    b.addEventListener("pointerleave", () => hot(false));
+    b.addEventListener("focus", () => hot(true));
+    b.addEventListener("blur", () => hot(false));
+    return el("li", {}, b);
   }));
 
-  $("todo").replaceChildren(...t("todo")[verdict === "unsure" ? "spam" : verdict].map((s) => li(s)));
-  if (fresh && window.matchMedia("(max-width: 900px)").matches) {
-    $("verdict").focus({ preventScroll: true });
+  // scores
+  const best = ["scam", "spam", "normal"].reduce((a, c) => (r.probs[c] > r.probs[a] ? c : a));
+  $("scores").replaceChildren(...["scam", "spam", "normal"].map((c) =>
+    el("li", { dataset: { c }, class: c === best ? "best" : "" },
+      el("span", {}, t("labels")[c]),
+      el("span", { class: "track" }, el("span", { class: "fill", style: `width:${(r.probs[c] * 100).toFixed(1)}%` })),
+      el("span", { class: "val" }, `${pct(r.probs[c])}%`))));
+
+  $("todo").replaceChildren(...t("todo")[tone].map((s) => el("li", { html: icon("tick") }, el("span", {}, s))));
+
+  if (fresh && window.matchMedia("(max-width: 960px)").matches) {
     $("result").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    $("verdict").focus({ preventScroll: true });
   }
+}
+
+function reset() {
+  $("message").value = "";
+  $("hint").textContent = "";
+  state.result = null;
+  state.example = null;
+  document.querySelectorAll(".example").forEach((b) => b.setAttribute("aria-pressed", "false"));
+  clearAttachment();
+  $("filled").hidden = true;
+  $("empty").hidden = false;
+  delete $("result").dataset.tone;
 }
 
 function renderAccuracy() {
   const det = state.det;
   $("model-lede").textContent = fill(t("model_lede"), { n: det.n_test.toLocaleString("en-US") });
-  const row = (name, m, n, isTotal = false) => {
-    const tr = document.createElement("tr");
-    if (isTotal) tr.className = "total";
-    const cells = [name, n.toLocaleString("en-US"), `${(m["Macro F1"] * 100).toFixed(1)}%`,
-      `${(m["Scam recall"] * 100).toFixed(1)}%`, `${(m["False alarms"] * 100).toFixed(1)}%`];
-    cells.forEach((v, i) => {
-      const td = document.createElement(i === 0 ? "th" : "td");
-      if (i === 0) td.scope = "row";
-      else td.className = "num";
-      td.textContent = v;
-      tr.append(td);
-    });
-    return tr;
-  };
-  $("acc-body").replaceChildren(
-    ...["en", "km", "zh"].map((l) => row(t("lang_names")[l], det.per_language[l], det.per_language[l].n)),
-    row(t("all_langs"), det.metrics, det.n_test, true),
+  const card = (name, m, n, total = false) => el("div", { class: `acc-card${total ? " total" : ""}` },
+    el("h3", {}, name),
+    el("p", { class: "big" }, `${(m["Macro F1"] * 100).toFixed(1)}%`),
+    el("p", { class: "big-label" }, t("f1_label")),
+    el("dl", {},
+      el("dt", {}, t("caught_label")), el("dd", {}, `${(m["Scam recall"] * 100).toFixed(1)}%`),
+      el("dt", {}, t("false_label")), el("dd", {}, `${(m["False alarms"] * 100).toFixed(1)}%`)),
+    el("p", { class: "n" }, fill(t("n_label"), { n: n.toLocaleString("en-US") })));
+  $("acc-cards").replaceChildren(
+    ...["en", "km", "zh"].map((l) => card(t("lang_names")[l], det.per_language[l], det.per_language[l].n)),
+    card(t("all_langs"), det.metrics, det.n_test, true),
   );
 }
 
@@ -209,6 +244,13 @@ function ocrStatus(text, progress = null) {
   $("ocr-status").textContent = text;
   $("progress").hidden = progress === null;
   if (progress !== null) $("progress").firstElementChild.style.width = `${Math.round(progress * 100)}%`;
+}
+
+function clearAttachment() {
+  $("attachment").hidden = true;
+  if (state.thumbUrl) URL.revokeObjectURL(state.thumbUrl);
+  state.thumbUrl = null;
+  $("file").value = "";
 }
 
 async function getWorker(langs) {
@@ -249,10 +291,13 @@ function cleanOcrText(text) {
 
 async function readScreenshot(file) {
   if (!file || !file.type.startsWith("image/")) return;
-  selectTab("image");
-  const thumb = $("thumb");
-  thumb.src = URL.createObjectURL(file);
-  thumb.hidden = false;
+  clearAttachment();
+  state.example = null;
+  document.querySelectorAll(".example").forEach((b) => b.setAttribute("aria-pressed", "false"));
+  state.thumbUrl = URL.createObjectURL(file);
+  $("thumb").src = state.thumbUrl;
+  $("attachment").hidden = false;
+  $("hint").textContent = "";
   ocrStatus(t("ocr_loading"), 0);
   try {
     const langs = $("ocr-lang").value;
@@ -273,8 +318,6 @@ async function readScreenshot(file) {
     }
     ocrStatus(t("ocr_done"));
     $("message").value = text;
-    selectTab("text");
-    $("hint").textContent = t("ocr_done");
     check();
   } catch (err) {
     console.error(err);
@@ -285,43 +328,46 @@ async function readScreenshot(file) {
 // ---------- wiring ----------
 
 document.querySelectorAll("[data-ui]").forEach((b) => b.addEventListener("click", () => setLanguage(b.dataset.ui)));
-$("tab-text").addEventListener("click", () => selectTab("text"));
-$("tab-image").addEventListener("click", () => selectTab("image"));
-document.querySelector(".tabs").addEventListener("keydown", (e) => {
-  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-    const next = $("tab-text").getAttribute("aria-selected") === "true" ? "image" : "text";
-    selectTab(next);
-    $(`tab-${next}`).focus();
-  }
-});
 $("check").addEventListener("click", check);
-$("clear").addEventListener("click", () => {
-  $("message").value = "";
-  $("hint").textContent = "";
-  state.result = null;
-  $("filled").hidden = true;
-  $("empty").hidden = false;
-  delete $("result").dataset.tone;
-  $("message").focus();
+$("clear").addEventListener("click", () => { reset(); $("message").focus(); });
+$("another").addEventListener("click", () => {
+  reset();
+  $("message").focus({ preventScroll: true });
+  $("message").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
 });
 $("message").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) check();
 });
-document.querySelectorAll("[data-example]").forEach((b) => b.addEventListener("click", () => {
-  const lang = b.dataset.example;
-  const list = EXAMPLES[lang];
-  $("message").value = list[state.exampleIndex[lang] % list.length];
-  state.exampleIndex[lang]++;
-  selectTab("text");
-  check();
-}));
-
+$("message").addEventListener("input", () => {
+  if (state.example !== null) {
+    state.example = null;
+    document.querySelectorAll(".example").forEach((b) => b.setAttribute("aria-pressed", "false"));
+  }
+});
 $("file").addEventListener("change", (e) => readScreenshot(e.target.files[0]));
-const drop = $("drop");
-["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
-["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, () => drop.classList.remove("over")));
-drop.addEventListener("drop", (e) => {
+$("remove-image").addEventListener("click", clearAttachment);
+
+// Drag a screenshot onto the message box (or anywhere on the page).
+const composer = $("composer");
+let dragDepth = 0;
+const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes("Files");
+window.addEventListener("dragenter", (e) => {
+  if (!hasFiles(e)) return;
+  dragDepth++;
+  composer.classList.add("over");
+  $("drop-overlay").hidden = false;
+});
+window.addEventListener("dragleave", () => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) { composer.classList.remove("over"); $("drop-overlay").hidden = true; }
+});
+window.addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener("drop", (e) => {
+  if (!hasFiles(e)) return;
   e.preventDefault();
+  dragDepth = 0;
+  composer.classList.remove("over");
+  $("drop-overlay").hidden = true;
   readScreenshot(e.dataTransfer.files[0]);
 });
 document.addEventListener("paste", (e) => {

@@ -546,8 +546,8 @@ meta = {
     "classes": final.classes_.tolist(), "n_features": n, "ngram_range": [1, 4],
     "layout": "float32: idf[n_features], then coef[n_classes][n_features]",
     "intercept": final.intercept_.round(6).tolist(), "vocab": vocab_list,
-    "metrics": {k: round(float(v), 4) for k, v in row.items()},
-    "per_language": {l: {k: round(float(v), 4) for k, v in evaluate(FINAL, (test.lang == l).values).items()}
+    "metrics": {k: round(float(v), 6) for k, v in row.items()},
+    "per_language": {l: {k: round(float(v), 6) for k, v in evaluate(FINAL, (test.lang == l).values).items()}
                      | {"n": int((test.lang == l).sum())} for l in LANGS},
     "n_test": int(len(test)),
     "trained_on": int(len(train)),
