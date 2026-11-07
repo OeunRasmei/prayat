@@ -10,7 +10,25 @@ export function setT2S(map) {
   T2S = map;
 }
 
-const ZERO_WIDTH_RE = /[​‌‍⁠﻿]/g;
+const ZERO_WIDTH_RE = /[​‌‍⁠﻿️]/g;
+// Emoji stay as features (🎁 🎉 💰 ⚠️ are common in promotions and scams); other symbols become spaces
+const EMOJI_RE = /[⌀-⏿☀-➿⬀-⯿\u{1F000}-\u{1FAFF}]/u;
+
+// Khmer is often typed (and read by OCR) in several Unicode spellings that look the same on screen.
+const KHMER_FIXES = [
+  [/េី/g, "ើ"], // េ + ី → ើ
+  [/េា/g, "ោ"], // េ + ា → ោ
+  [/ំុ/g, "ុំ"], // ំ before ុ → ុំ
+  [/ឱ្យ/g, "ឲ្យ"], // ឱ្យ and ឲ្យ are the same word
+  [/ឣ/g, "អ"], // deprecated independent vowels
+  [/ឤ/g, "អា"],
+  [/្រ្([ក-ឣ])/g, "្$1្រ"], // subscript ro comes after the other subscript
+];
+
+export function fixKhmer(text) {
+  for (const [pattern, repl] of KHMER_FIXES) text = text.replace(pattern, repl);
+  return text;
+}
 const EMAIL_RE = /[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/g;
 const URL_RE = new RegExp(
   "(?:https?://|www\\.)[a-z0-9\\-._~:/?#\\[\\]@!$&'()*+,;=%]+" +
@@ -28,7 +46,7 @@ const KHMER_DIGIT_RE = /[០-៩]/g;
 export const NGRAM_RANGE = [1, 4];
 
 export function normalize(text) {
-  let t = text.normalize("NFKC");
+  let t = fixKhmer(text.normalize("NFKC"));
   t = t.toLowerCase();
   t = Array.from(t, (c) => T2S[c] ?? c).join("");
   t = t.replace(KHMER_DIGIT_RE, (c) => String(c.charCodeAt(0) - 0x17e0));
@@ -36,7 +54,7 @@ export function normalize(text) {
   t = t.replace(EMAIL_RE, ` ${EMAIL} `);
   t = t.replace(URL_RE, ` ${URL} `);
   t = t.replace(PHONE_RE, ` ${PHONE} `);
-  t = t.replace(SYMBOLS_RE, " ");
+  t = t.replace(SYMBOLS_RE, (c) => (EMOJI_RE.test(c) ? c : " "));
   t = t.replace(DIGITS_RE, "0");
   t = t.replace(SPACE_RE, " ").trim();
   t = t.replace(CJK_GAP_RE, "$1");

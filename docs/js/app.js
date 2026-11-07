@@ -1,6 +1,7 @@
 import { classify, highlightRanges, loadDetector } from "./detector.js";
 import { EXAMPLES, STRINGS } from "./i18n.js";
-import { detectLanguage } from "./textprep.js";
+import { cleanOcrText, enhanceForOcr } from "./ocrprep.js";
+import { detectLanguage, fixKhmer } from "./textprep.js";
 
 const TESSERACT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
 const UNSURE_BELOW = 0.6;
@@ -107,7 +108,7 @@ function check() {
     return;
   }
   if ($("hint").textContent === t("need_text")) $("hint").textContent = "";
-  state.result = classify(state.det, text);
+  state.result = classify(state.det, fixKhmer(text));
   renderResult(state.result, true);
 }
 
@@ -278,15 +279,10 @@ async function prepareImage(file) {
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  enhanceForOcr(img);
+  ctx.putImageData(img, 0, 0);
   return canvas;
-}
-
-function cleanOcrText(text) {
-  return text
-    .replace(/([一-鿿])[ \t]+(?=[一-鿿])/g, "$1") // OCR puts spaces between Chinese characters
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 async function readScreenshot(file) {

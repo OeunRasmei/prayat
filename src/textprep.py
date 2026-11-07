@@ -15,7 +15,26 @@ URL, EMAIL, PHONE = "", "", ""
 T2S = {ord(k): v for k, v in json.loads((Path(__file__).with_name("t2s.json")).read_text(encoding="utf-8")).items()}
 KHMER_DIGITS = str.maketrans("០១២៣៤៥៦៧៨៩", "0123456789")
 
-ZERO_WIDTH_RE = re.compile("[​‌‍⁠﻿]")
+ZERO_WIDTH_RE = re.compile("[​‌‍⁠﻿️]")
+# Emoji stay as features (🎁 🎉 💰 ⚠️ are common in promotions and scams); other symbols become spaces
+EMOJI_RE = re.compile("[⌀-⏿☀-➿⬀-⯿\U0001F000-\U0001FAFF]")
+
+# Khmer is often typed (and read by OCR) in several Unicode spellings that look the same on screen.
+KHMER_FIXES = [
+    (re.compile("េី"), "ើ"),            # េ + ី → ើ
+    (re.compile("េា"), "ោ"),            # េ + ា → ោ
+    (re.compile("ំុ"), "ុំ"),           # ំ before ុ → ុំ
+    (re.compile("ឱ្យ"), "ឲ្យ"),         # ឱ្យ and ឲ្យ are the same word
+    (re.compile("ឣ"), "អ"),              # deprecated independent vowels
+    (re.compile("ឤ"), "អា"),
+    (re.compile("្រ្([ក-ឣ])"), "្\\1្រ"),  # subscript ro comes after the other subscript
+]
+
+
+def fix_khmer(text):
+    for pattern, repl in KHMER_FIXES:
+        text = pattern.sub(repl, text)
+    return text
 EMAIL_RE = re.compile(r"[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}")
 URL_RE = re.compile(
     r"(?:https?://|www\.)[a-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+"
@@ -31,16 +50,17 @@ NGRAM_RANGE = (1, 4)
 
 
 def _drop_symbols(text):
-    """Punctuation and symbols become spaces, except currency signs ($ £ ¥ ៛ ...)."""
+    """Punctuation and symbols become spaces, except currency signs ($ £ ¥ ៛ ...) and emoji."""
     out = []
     for ch in text:
         cat = unicodedata.category(ch)
-        out.append(" " if cat[0] in "PS" and cat != "Sc" else ch)
+        out.append(" " if cat[0] in "PS" and cat != "Sc" and not EMOJI_RE.match(ch) else ch)
     return "".join(out)
 
 
 def normalize(text):
     t = unicodedata.normalize("NFKC", text)
+    t = fix_khmer(t)
     t = t.lower()
     t = t.translate(T2S)              # traditional → simplified Chinese
     t = t.translate(KHMER_DIGITS)     # ០-៩ → 0-9

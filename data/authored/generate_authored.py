@@ -56,6 +56,10 @@ SLOTS = {
         "riel": ["៨៥,០០០", "១២០,០០០", "64,500", "២១០,០០០"],
         "food": ["បាយសាច់ជ្រូក", "គុយទាវ", "នំបញ្ចុក", "បបរ", "ភីហ្សា"],
         "subject": ["គណិតវិទ្យា", "រូបវិទ្យា", "ភាសាអង់គ្លេស", "Machine Learning", "ប្រវត្តិវិទ្យា"],
+        "date": ["02.11.2026", "៣១ ធ្នូ ២០២៦", "15/12/2026", "ចុងខែនេះ", "៣០ វិច្ឆិកា"],
+        "telco_app": ["SmartNas", "Cellcard App", "My Metfone", "កម្មវិធី Smart"],
+        "points": ["៥០០", "1,200", "៨០០", "២,០០០"],
+        "goodnum": ["លេខស្អាត Standard", "លេខស្អាត VIP", "លេខស្អាត ៨៨៨"],
     },
     "en": {
         "name": ["Sophea", "Dara", "Emily", "Jake", "Mina", "Tom", "Lisa", "Kevin"],
@@ -158,6 +162,18 @@ TEMPLATES = {
             "{shop} បញ្ចុះតម្លៃទូរទស្សន៍ និងទូទឹកកករហូតដល់ {pct}។ ដឹកជញ្ជូនឥតគិតថ្លៃ។",
             "វគ្គបណ្ដុះបណ្ដាលកុំព្យូទ័រ Word និង Excel សម្រាប់អ្នកចាប់ផ្ដើម ចូលរៀនថ្ងៃទី{day}។ ចុះឈ្មោះ {phone}",
             "ទិញម៉ូតូថ្មី បង់រំលស់ដោយមិនគិតការប្រាក់ ៦ ខែដំបូង។ អញ្ជើញមក{shop}ថ្ងៃនេះ!",
+            # Real promotions often say "you won" too. What they don't do: ask you to click an
+            # unknown link, pay a fee, or send codes. The prize is collected at an official shop.
+            "អបអរសាទរ! អ្នកបានឈ្នះរង្វាន់ បញ្ចុះតម្លៃ {pct} {goodnum} ពី {telco}។ សូមអញ្ជើញទៅកាន់ {telco} Shop ដែលនៅជិតអ្នក ដើម្បីទទួលយករង្វាន់ឲ្យបានមុនថ្ងៃទី {date}។",
+            "{telco}៖ អបអរសាទរ! លេខរបស់អ្នកទទួលបាន {data} ឥតគិតថ្លៃ ប្រើបានរហូតដល់ {date}។ ពិនិត្យសមតុល្យ ចុច *{code}#",
+            "កុំភ្លេចចូលលេងហ្គេមសប្បាយៗក្នុង {telco_app} ឈ្នះរង្វាន់រាល់ថ្ងៃ! រង្វាន់ធំគឺ{prize}។ ទាញយកកម្មវិធីពី App Store ឬ Play Store។",
+            "{bank}៖ ទូទាត់ដោយ KHQR នៅ{shop} ទទួលបានការបញ្ចុះតម្លៃ {pct}។ ការផ្ដល់ជូនមានសុពលភាពរហូតដល់ {date}។",
+            "{shop} សូមអរគុណដែលបានគាំទ្រ! អតិថិជនដែលទិញចាប់ពី $20 ឡើង មានឱកាសចាប់រង្វាន់{prize}។ ការចាប់រង្វាន់ធ្វើឡើងនៅ {date}។",
+            "{goodnum} ពី {telco} បញ្ចុះតម្លៃ {pct}! អញ្ជើញមកជ្រើសរើសលេខដែលអ្នកចូលចិត្តនៅ {telco} Shop ទូទាំងប្រទេស។",
+            "{telco}៖ អតិថិជនជាទីស្រឡាញ់ អ្នកមានពិន្ទុរង្វាន់ {points} ពិន្ទុ។ ប្ដូរជាកញ្ចប់អ៊ីនធឺណិតតាមរយៈ *{code}# ឬក្នុង {telco_app}។",
+            "ការផ្ដល់ជូនពិសេសចុងឆ្នាំ! ទិញ {model} នៅ{shop} មានឱកាសឈ្នះ{prize}។ ព័ត៌មានបន្ថែម សូមទូរស័ព្ទមក {phone}។",
+            "{telco} ជូនដំណឹង៖ បញ្ចូលលុយចាប់ពី {price} ឡើងទៅ ទទួលបានឱកាសចូលរួមចាប់រង្វាន់ប្រចាំខែ។ អ្នកឈ្នះនឹងត្រូវបានប្រកាសនៅលើទំព័រ Facebook ផ្លូវការរបស់ {telco}។",
+            "{bank} សូមអបអរសាទរ! អ្នកបានឈ្នះ{prize} ក្នុងកម្មវិធីប្រូម៉ូសិនរបស់យើង។ សូមយកអត្តសញ្ញាណប័ណ្ណមកសាខាដែលនៅជិតបំផុត ដើម្បីទទួលរង្វាន់មុន {date}។",
         ],
         "normal": [
             "{name} ល្ងាចនេះទៅញ៉ាំ{food}ជាមួយគ្នាទេ? {time} នៅហាងចាស់។",
@@ -258,6 +274,8 @@ TEMPLATES = {
             "Flash sale! {pct} off sneakers today only at {shop}. Shop now: {link}",
             "Get 3 months of premium streaming for just $1. Text JOIN to 55555. Msg and data rates may apply.",
             "{shop}: your weekend coupon is here! Show this text for a free coffee with any purchase.",
+            "Congratulations! You won {prize} in our in-store lucky draw. Bring your receipt to any {shop} store to collect it.",
+            "{shop} rewards: you have 500 points. Redeem them for a free drink in our app or at the counter.",
         ],
         "normal": [
             "Your verification code is {otp}. Do not share this code with anyone.",
@@ -358,9 +376,25 @@ TEMPLATES = {
 
 SLOT_RE = re.compile(r"\{(\w+)\}")
 
+# Real messages often carry emoji. Promotions and scams share 🎉 and 🎁, so the model still has
+# to look at the words (links, fees, codes) to tell them apart.
+EMOJI = {
+    "scam": ["🎉", "🎁", "⚠️", "💰", "‼️", "🚨", "💵"],
+    "spam": ["🎉", "🎁", "🔥", "✨", "🥳", "📣", "🛍️"],
+    "normal": ["😊", "😂", "👍", "❤️", "🙏", "😅", "🥰"],
+}
+
 
 def fill(template, slots):
     return SLOT_RE.sub(lambda m: random.choice(slots[m.group(1)]), template)
+
+
+def add_emoji(text, label):
+    if random.random() < 0.4:
+        text = f"{random.choice(EMOJI[label])} {text}"
+    if random.random() < 0.3:
+        text = f"{text} {random.choice(EMOJI[label])}"
+    return text
 
 
 def main():
@@ -371,9 +405,9 @@ def main():
                 variants = set()
                 attempts = 0
                 n_slots = len(SLOT_RE.findall(template))
-                target = VARIANTS_PER_TEMPLATE if n_slots else 1
+                target = VARIANTS_PER_TEMPLATE if n_slots else 2
                 while len(variants) < target and attempts < 200:
-                    variants.add(fill(template, SLOTS[lang]))
+                    variants.add(add_emoji(fill(template, SLOTS[lang]), label))
                     attempts += 1
                 for text in sorted(variants):
                     rows.append({"text": text, "label": label, "lang": lang, "source": "authored",

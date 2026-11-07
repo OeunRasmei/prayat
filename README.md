@@ -8,18 +8,22 @@ says what to do. Everything runs in the browser: messages and screenshots never 
 
 **Live app:** https://oeunrasmei.github.io/prayat/
 
-## Results (3,209 test messages never seen in training)
+## Results (3,290 test messages never seen in training)
 
 | Model | Accuracy | Macro F1 | Scams caught | Any warning on spam/scam | False alarms |
 |---|---:|---:|---:|---:|---:|
-| Naive Bayes (characters) | 96.6% | 95.1% | 87.9% | 97.5% | 1.8% |
-| Logistic Regression (words) | 84.4% | 78.4% | 64.6% | 62.2% | 1.0% |
-| **Logistic Regression (characters)**, deployed | **98.2%** | **97.2%** | **93.0%** | **98.3%** | **0.3%** |
-| Neural network / MLP (characters) | 97.6% | 96.3% | 89.1% | 96.7% | 0.1% |
+| Naive Bayes (characters) | 96.3% | 95.1% | 87.8% | 96.3% | 2.2% |
+| Logistic Regression (words) | 83.0% | 77.0% | 60.6% | 62.0% | 1.8% |
+| **Logistic Regression (characters)**, deployed | **97.4%** | **96.2%** | **90.1%** | **97.8%** | **0.8%** |
+| Neural network / MLP (characters) | 97.1% | 95.9% | 87.8% | 95.9% | 0.5% |
 
-Macro F1 per language for the deployed model: English 91.0%, Khmer 90.1%, Chinese 98.7%.
-Word features only reach 77.8% on Khmer and 75.2% on Chinese, because those languages do not put
+Macro F1 per language for the deployed model: English 93.2%, Khmer 87.5%, Chinese 97.3%.
+Word features only reach 62.2% on Khmer and 74.6% on Chinese, because those languages do not put
 spaces between words. Character n-grams work for all three scripts.
+
+The previous version scored higher (98.2% accuracy) but called real Khmer telecom promotions
+("you won a discount, collect it at the Smart Shop") scams. Adding promotion and emoji examples
+fixed that; the test set also changed, because new templates reshuffle the split by template.
 
 ## Data
 
@@ -28,7 +32,7 @@ spaces between words. Character n-grams work for all three scripts.
 | English | SMS Phishing Dataset for Machine Learning and Pattern Recognition, Mishra & Soni, Mendeley Data 2022 (5,971 SMS: ham / spam / smishing) | normal, spam, scam |
 | Chinese | FBS SMS Dataset, Zhang et al., "Lies in the Air", ACM CCS 2020 (real spam and fraud SMS from fake base stations) | spam, scam |
 | Chinese | NUS SMS Corpus, Chen & Kan 2013 (real personal SMS) | normal |
-| Khmer, English, Chinese | Written by our team: `data/authored/generate_authored.py` (template-based, common Cambodian scam patterns plus modern English and Chinese scams) | all classes |
+| Khmer, English, Chinese | Written by our team: `data/authored/generate_authored.py`. Scam templates collected from English and other languages, translated into Khmer and adapted to Cambodia (ABA, ACLEDA, Smart, riel), plus real-style promotions, everyday messages and emoji | all classes |
 
 No public Khmer scam dataset exists, so **all Khmer data is authored**. The test set is split by
 template, so Khmer scores measure performance on message patterns the model has never seen, not on
@@ -36,10 +40,13 @@ real Khmer scams. Native speakers in the group should review and extend the Khme
 
 ## How it works
 
-1. **OCR** (screenshots only): Tesseract.js reads English, Khmer and Chinese text in the browser.
-2. **Normalisation** (`src/textprep.py`, ported to `docs/js/textprep.js`): NFKC, lower-case,
-   traditional → simplified Chinese, Khmer digits → 0-9, links / phone numbers / e-mails → placeholders,
-   numbers → 0, punctuation and emoji removed.
+1. **OCR** (screenshots only): the picture is turned grey, contrast-stretched and, for dark-mode
+   screenshots, inverted; then Tesseract.js reads English, Khmer and Chinese text in the browser.
+   `docs/js/ocrprep.js` removes the phone's clock line and the junk that icons and emoji turn into.
+2. **Normalisation** (`src/textprep.py`, ported to `docs/js/textprep.js`): NFKC, Khmer spelling
+   variants unified (ឱ្យ → ឲ្យ, េ + ា → ោ, subscript order), lower-case, traditional → simplified
+   Chinese, Khmer digits → 0-9, links / phone numbers / e-mails → placeholders, numbers → 0,
+   punctuation removed, emoji kept.
 3. **Features**: TF-IDF over 40,000 character n-grams (1 to 4 characters).
 4. **Model**: multinomial Logistic Regression (C = 10, each language × class group weighted equally).
 5. **Explanation**: each n-gram's contribution is spread back over its characters to underline suspicious phrases.

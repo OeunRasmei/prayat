@@ -267,9 +267,10 @@ plt.show()
 # The same `normalize()` function (in `src/textprep.py`, ported line by line to JavaScript) runs
 # in training and in the browser:
 #
-# 1. Unicode NFKC and lower-case; traditional → simplified Chinese; Khmer digits ០-៩ → 0-9
+# 1. Unicode NFKC and lower-case; traditional → simplified Chinese; Khmer digits ០-៩ → 0-9;
+#    Khmer spelling variants unified (ឱ្យ → ឲ្យ, េ + ា → ោ, subscript order)
 # 2. Links → a URL placeholder, e-mail → EMAIL placeholder, phone numbers → PHONE placeholder
-# 3. Punctuation and emoji removed (currency signs such as $ ៛ ¥ are kept)
+# 3. Punctuation removed (currency signs such as $ ៛ ¥ and emoji such as 🎁 ⚠️ are kept)
 # 4. Every number → `0` (so "$500" and "$20" look the same to the model)
 # 5. Spaces between Chinese characters removed
 
@@ -569,13 +570,15 @@ for f in ("model.json", "model.bin", "t2s.json"):
 #
 # * One multilingual model handles **English, Khmer and Chinese** thanks to character n-grams:
 #   no word segmentation, no translation, no language-specific code. On the test set it reaches
-#   98.2% accuracy and 97.2% macro F1, catches 93.0% of scams (98.3% get some warning) and wrongly
-#   flags only 0.3% of normal messages.
-# * Word-based features, the usual tutorial approach, clearly fail on Khmer (78% macro F1) and
-#   Chinese (75%), against 90% and 99% with characters.
-# * Logistic Regression beats the neural network (97.2% vs 96.3% macro F1) while staying
-#   explainable and small enough to run in a phone browser. Naive Bayes is close on Khmer.
-# * On message patterns it has never seen, it still reaches 88–97% macro F1. Our first version
+#   97.4% accuracy and 96.2% macro F1, catches 90.1% of scams (97.8% get some warning) and wrongly
+#   flags only 0.8% of normal messages.
+# * Word-based features, the usual tutorial approach, clearly fail on Khmer (62% macro F1) and
+#   Chinese (75%), against 88% and 97% with characters.
+# * Logistic Regression beats the neural network (96.2% vs 95.9% macro F1) while staying
+#   explainable and small enough to run in a phone browser. Naive Bayes is slightly better on Khmer (89% vs 88%).
+# * On authored message patterns it has never seen, it reaches 99% macro F1 in English and 88% in
+#   Khmer, but only 56% on the 44 Chinese test messages: two Chinese scam patterns ("my new number,
+#   send money" and parcel re-delivery fees) are rare in the real Chinese data. Our first version
 #   scored only 28% on modern English scams, because the public English data is from the 2010s;
 #   adding modern patterns (delivery fees, toll fines, job offers, account locks) fixed most of it.
 # * **Limitations**: the Khmer data is authored by us, so Khmer scores show how well the model
