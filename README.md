@@ -65,8 +65,7 @@ notebooks/scam_detector.py       same notebook as a plain script (jupytext)
 src/textprep.py                  shared text normalisation
 data/download_data.py            downloads the three public datasets into data/raw/
 data/authored/                   our authored messages and their generator
-reports/figures/                 charts used in the slides
-docs/                            the web app (GitHub Pages)
+docs/                            the web app (GitHub Pages) and the exported model
 tests/check_parity.mjs           Python vs JavaScript check
 ```
 

@@ -4,3 +4,7 @@ __pycache__/
 .DS_Store
 reports/run.log
 data/raw/
+
+# Slides material and notebook outputs stay on our computers, not in the repo
+presentation/
+reports/
